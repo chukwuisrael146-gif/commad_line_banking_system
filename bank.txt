@@ -1,0 +1,381 @@
+import re
+import random
+import json
+from datetime import datetime
+
+
+# Store all accounts here
+accounts = {}
+DATA_FILE = "bank_data.json"
+
+def save_data():
+    with open(DATA_FILE, "w") as f:
+        json.dump(accounts, f, indent=4)
+
+def load_data():
+    global accounts
+    
+    try:
+        with open(DATA_FILE, "r") as f:
+            accounts = json.load(f)
+
+    except FileNotFoundError:
+        accounts = {}
+
+def generate_account_number():
+    while True:
+        # Generate a random 9-digit account number
+        acc_num = str(random.randint(100000000, 999999999))
+
+        # Check that it has not already been assigned
+        if acc_num not in accounts:
+            return acc_num
+
+def is_strong_password(password):
+    """ 
+    Password rules:
+    - at least 8 characters
+    - at least one uppercase letter
+    - at least one lowercase letter
+    - at least one digit 
+    - at least one special character
+    """
+    
+    if len(password) < 8:
+        return False
+    
+    if not re.search(r"[A-Z]", password):
+        return False
+    
+    if not re.search(r"[a-z]", password):
+        return False
+    
+    if not re.search(r"\d", password):
+        return False
+    
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
+        return False
+    
+    return True
+
+def authenticate():
+    account_number = input("Enter Account Number: ").strip()
+
+    if account_number not in accounts:
+        print("Account not found.")
+        return None
+
+    attempts = 0
+    
+    while attempts < 3:
+        password = input("Enter Password: ").strip()
+
+        if accounts[account_number]["password"] == password:
+            return account_number
+        
+        attempts += 1
+        remaining = 3 - attempts
+        
+        if remaining > 0:
+            print(f"Incorrect password. You have {remaining} attempts(s) remaining.")
+        else:
+            raise SystemExit("OMAH'S BANKING SYSTEM IS NOW CLOSED")
+
+def add_transaction(account, transaction_type, amount, details=""):
+    time_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    entry = {
+        "time": time_now,
+        "type": transaction_type,
+        "amount": amount,
+        "details": details
+    }
+    account["transactions"].append(entry)
+    save_data()
+
+def create_account():
+    print("\n --- Create Account ---")
+    name = input("Enter your name: ").strip()
+    
+    while True:
+        password = input("Create a strong password: ").strip()
+        confirm_password = input("Confirm your password: ").strip()
+
+        if password != confirm_password:
+            print("Passwords do not match. Try again.\n")
+            continue 
+        
+        if is_strong_password(password):
+            break
+        else:
+            print("Weak password. Use at least 8 characters with:")
+            print("- one uppercase letter")
+            print("- one lowercase letter")
+            print("- one number")
+            print("- one special character")
+
+    account_number = generate_account_number()
+
+    accounts[account_number] = {
+        "name": name,
+        "password": password,
+        "balance": 0.0,
+        "transactions": []
+    }
+    save_data()
+    
+    print(f"\nAccount created successfully!")
+    print(f"Account Number: {account_number}")
+    print(f"Name: {name}")
+    print(f"Opening Balance: $0.00\n")
+
+def login():
+    print("\n --- Login ---")
+    account_number = input("Enter account number: ").strip()
+    password = input("Enter password: ").strip()
+
+    if account_number in accounts and accounts[account_number]["password"] == password:
+        print(f"\nWelcome, {accounts[account_number]['name']}!")
+        return account_number
+    else:
+        print("Invalid account number or password.")
+        return None
+    
+def deposit():
+    print("\n--- Deposit Money ---")
+
+    acc_num = authenticate()
+
+    if acc_num is None:
+        return
+
+    try:
+        amount = float(input("Enter amount to deposit: "))
+
+        if amount <= 0:
+            print("Amount must be greater than zero.")
+            return
+
+        accounts[acc_num]["balance"] += amount
+        add_transaction(accounts[acc_num], "Deposit", amount)
+        save_data()
+
+        print("Deposit successful.")
+        print(f"New Balance: ${accounts[acc_num]['balance']:.2f}")
+
+    except ValueError:
+        print("Invalid amount.")
+
+def withdraw():
+    print("\n--- Withdraw Money ---")
+
+    acc_num = authenticate()
+
+    if acc_num is None:
+        return
+
+    try:
+        amount = float(input("Enter amount to withdraw: "))
+
+        if amount <= 0:
+            print("Amount must be greater than zero.")
+            return
+
+        if amount > accounts[acc_num]["balance"]:
+            print("Insufficient funds.")
+            return
+
+        accounts[acc_num]["balance"] -= amount
+        add_transaction(accounts[acc_num], "Withdraw", amount)
+        save_data()
+
+        print("Withdrawal successful.")
+        print(f"New Balance: ${accounts[acc_num]['balance']:.2f}")
+
+    except ValueError:
+        print("Invalid amount.")
+
+def transfer():
+    print("\n--- Transfer Funds ---")
+
+    sender_acc = authenticate()
+
+    if sender_acc is None:
+        return
+
+    receiver_acc = input("Enter Recipient Account Number: ").strip()
+
+    if receiver_acc not in accounts:
+        print("Recipient account not found.")
+        return
+
+    try:
+        amount = float(input("Enter amount to transfer: "))
+
+        if amount <= 0:
+            print("Amount must be greater than zero.")
+            return
+
+        if amount > accounts[sender_acc]["balance"]:
+            print("Insufficient funds.")
+            return
+
+        accounts[sender_acc]["balance"] -= amount
+        accounts[receiver_acc]["balance"] += amount
+        save_data()
+
+        add_transaction(
+            accounts[sender_acc],
+            "Transfer Sent",
+            amount,
+            f"To {receiver_acc}"
+        )
+
+        add_transaction(
+            accounts[receiver_acc],
+            "Transfer Received",
+            amount,
+            f"From {sender_acc}"
+        )
+
+        print("Transfer successful.")
+        print(f"New Balance: ${accounts[sender_acc]['balance']:.2f}")
+
+    except ValueError:
+        print("Invalid amount.")
+
+
+def view_balance():
+    print("\n--- View Balance ---")
+
+    acc_num = authenticate()
+
+    if acc_num is None:
+        return
+
+    print(f"Account Holder: {accounts[acc_num]['name']}")
+    print(f"Balance: ${accounts[acc_num]['balance']:.2f}")
+
+    
+def transaction_summary():
+    print("\n--- Transaction Summary ---")
+
+    acc_num = authenticate()
+
+    if acc_num is None:
+        return
+
+    account = accounts[acc_num]
+
+    print(f"\nAccount Holder: {account['name']}")
+    print(f"Account Number: {acc_num}")
+    print(f"Current Balance: ${account['balance']:.2f}")
+
+    print("\nTransactions:")
+
+    if not account["transactions"]:
+        print("No transactions yet.")
+        return
+
+    for i, t in enumerate(account["transactions"], start=1):
+        print(
+            f"{i}. {t['time']} | {t['type']} | "
+            f"${t['amount']:.2f} | {t['details']}"
+        )
+
+def normalize_choice(choice):
+    choice = choice.strip().lower()
+
+    mapping = {
+        "1": "create",
+        "create": "create",
+        "create account": "create",
+
+        "2": "deposit",
+        "deposit": "deposit",
+        "deposit money": "deposit",
+
+        "3": "withdraw",
+        "withdraw": "withdraw",
+        "withdraw money": "withdraw",
+
+        "4": "transfer",
+        "transfer": "transfer",
+        "transfer funds": "transfer",
+
+        "5": "balance",
+        "balance": "balance",
+        "view balance": "balance",
+
+        "6": "summary",
+        "summary": "summary",
+        "transaction summary": "summary",
+
+        "7": "exit",
+        "exit": "exit",
+        "quit": "exit"
+    }
+
+    return mapping.get(choice)
+
+
+def main():
+    invalid_attempts = 0
+    
+    while True:
+        print("\n===============================")
+        print("=== Omah's Banking System ===")
+        print("===============================")
+        print("1. Create Account")
+        print("2. Deposit Money")
+        print("3. Withdraw Money")
+        print("4. Transfer Funds")
+        print("5. View Balance")
+        print("6. Transaction Summary")
+        print("7. Exit")
+        print("===============================")
+
+        choice = input("Choose an option: ")
+        action = normalize_choice(choice)
+
+        if action == "create":
+            invalid_attempts = 0
+            create_account()
+
+        elif action == "deposit":
+            invalid_attempts = 0
+            deposit()
+
+        elif action == "withdraw":
+            invalid_attempts = 0
+            withdraw()
+
+        elif action == "transfer":
+            invalid_attempts = 0
+            transfer()
+
+        elif action == "balance":
+            invalid_attempts = 0
+            view_balance()
+
+        elif action == "summary":
+            invalid_attempts = 0
+            transaction_summary()
+
+        elif action == "exit":
+            print("THANK YOU FOR BANKING WITH US")
+            break
+
+        else:
+            invalid_attempts += 1
+
+            remaining = 3 - invalid_attempts
+
+            if remaining > 0:
+                print(f"Invalid option. You have {remaining} attempts(s) remaining.")
+            else:
+                print("\nToo many invalid attempts.")
+                print("OMAH'S BANKING SYSTEM IS NOW CLOSED.")
+                break
+
+load_data()
+main()
