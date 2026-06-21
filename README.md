@@ -90,7 +90,3 @@ The file is created automatically on first run if it doesn't exist.
 - **PINs stored in plaintext JSON, just hashed** — the hash itself is safe to store, but the whole `bank_data.json` file (balances, names, transaction history) is unencrypted on disk.
 - **`transfer()` indentation bug** — the final `print("Too many invalid attempts.")` / `print("Transfer Cancelled")` lines sit outside the method body (at class level) due to indentation, so they never execute as part of a failed transfer and may cause issues at class-definition time depending on context.
 - **No `requirements.txt` needed** — standard library only.
-
-## License
-
-Not specified — add one if you plan to share or reuse this project.
