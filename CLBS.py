@@ -2,6 +2,7 @@ import json
 import random
 import hashlib
 import os
+from getpass import getpass
 from datetime import datetime
 
 
@@ -101,7 +102,7 @@ class BankingSystem:
         while attempts < 3:
         
             username = input("Admin username: ")
-            password = input("Admin password: ")
+            password = getpass("Admin password: ")
 
             
             if username == "admin" and password == "admin123":
@@ -206,7 +207,7 @@ class BankingSystem:
                 self.transfer(account)
 
 
-
+    
             elif choice in ["4","balance"]:
                 attempts = 0
                 self.view_balance(account)
@@ -269,8 +270,8 @@ class BankingSystem:
         attempts = 0
         
         while attempts < 3:
-            pin = input("Create 4-digit PIN: ")
-            confirm = input("Confirm PIN: ")
+            pin = getpass("Create a 4-digit PIN: ")
+            confirm = getpass("Confirm PIN: ")
 
             if pin != confirm:
                 
@@ -380,7 +381,7 @@ class BankingSystem:
             
              
             while attempts < 3:
-                pin = input("Enter PIN to confirm Withdrawal: ").strip()
+                pin = getpass("Enter PIN to confirm Withdrawal: ").strip()
 
                 stored_hash = self.accounts[acc]["pin"]
 
@@ -627,3 +628,5 @@ class BankingSystem:
 if __name__ == "__main__":
     bank = BankingSystem()
     bank.menu()
+    
+    
